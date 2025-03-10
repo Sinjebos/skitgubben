@@ -180,6 +180,10 @@ class SkitGubbenGame {
 
         // Determine which card source to use
         if (fromTable) {
+            // Check if trying to play face-down cards before face-up cards are gone
+            if (player.playingTableCards && player.tableCardsUp.length > 0) {
+                return { success: false, message: "Du måste spela alla kort uppåtvänta först!" };
+            }
             if (player.playingTableCards) {
                 cardSource = player.tableCardsDown;
             } else {
@@ -220,7 +224,7 @@ class SkitGubbenGame {
         } else if (this.currentRank === -1 || playerIndex === this.lastPlayerToPlay) {
             validPlay = true;
             this.currentRank = card.rank;
-        } else if (card.rank >= this.currentRank) {
+        } else if (card.rank > this.currentRank) {  // Changed from >= to > to prevent playing equal cards
             validPlay = true;
             this.currentRank = card.rank;
         }
@@ -249,36 +253,24 @@ class SkitGubbenGame {
                 this.drawCardsToMinimum(player);
             }
 
-            // Check if player should move to table cards
-            if (player.hand.length === 0 && !player.playingTableCards &&
-                (player.tableCardsUp.length > 0 || player.tableCardsDown.length > 0)) {
+            // If player has no more face-up cards and has face-down cards, switch to playing face-down
+            if (player.tableCardsUp.length === 0 && player.tableCardsDown.length > 0) {
                 player.playingTableCards = true;
             }
 
-            // Move to next player unless it's a special card
-            if (!specialAction) {
-                this.nextPlayer();
-            }
-
-            this.checkGameOver();
-            return {
-                success: true,
-                message: `${player.name} spelade ${card.value}${card.suit}${specialAction ? ' (Specialkort!)' : ''}`,
-                gameState: this.getGameState()
-            };
-        } else {
-            // Invalid play - pick up the pile
-            this.pile.forEach(c => player.hand.push(c));
-            this.pile = [];
-            this.currentRank = -1;
+            // Move to next player
             this.nextPlayer();
 
-            return {
-                success: true,
-                message: `${player.name} kunde inte spela ${card.value}${card.suit}. Tar upp högen!`,
-                gameState: this.getGameState()
-            };
+            return { success: true, message: `${player.name} spelade ${card.toString()}` };
         }
+
+        // Invalid play - pick up the pile
+        this.pile.forEach(c => player.hand.push(c));
+        this.pile = [];
+        this.currentRank = -1;
+        this.nextPlayer();
+
+        return { success: true, message: `${player.name} kunde inte spela ${card.toString()}. Tar upp högen!` };
     }
 
     drawCardsToMinimum(player) {
